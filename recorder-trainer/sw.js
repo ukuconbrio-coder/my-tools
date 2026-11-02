@@ -1,6 +1,6 @@
 // Keeps a copy of the app on the device so it works offline.
 // When you change any file, bump VERSION so devices pick up the new copy.
-const VERSION = 'recorder-trainer-v1';
+const VERSION = 'recorder-trainer-v2';
 const FILES = [
   './',
   'index.html',
