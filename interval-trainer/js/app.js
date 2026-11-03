@@ -279,6 +279,12 @@ root.addEventListener('change', e => {
 render();
 
 // Offline support: save the app on the device after the first visit.
+// When a newer version of the app arrives, reload once to show it.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  let hadVersion = !!navigator.serviceWorker.controller; // false on the very first visit
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadVersion) location.reload();
+    hadVersion = true;
+  });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
 }

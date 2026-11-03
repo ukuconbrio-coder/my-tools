@@ -185,3 +185,6 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
   background: var(--accent-soft); color: var(--accent); font-size: .9rem; font-weight: 700;
 }
 .level-label + .ask { margin-top: 2px; }
+.len-picker { grid-template-columns: repeat(4, 1fr); }
+.len-picker .seg { min-height: 56px; font-size: 1.25rem; }
+.seg:disabled { opacity: .35; }

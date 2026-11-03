@@ -28,7 +28,9 @@ const saveSettings = () => progress.saveSettings(settings);
 
 let screen = 'home';
 let session = null;
-let showLevels = false; // home screen: the "change level" panel is open
+// Notes per card is one setting shared by both practice directions.
+// She picks it on the home screen; the app also moves her up when she's ready.
+const LEVEL = 'all';
 
 const chipLabel = n => (n.high ? 'high ' : '') + n.name;
 
@@ -37,8 +39,8 @@ function selectedNotes() {
 }
 
 // The pattern length to use right now (can't make patterns from just one note).
-function lengthFor(mode) {
-  return Math.min(progress.getLevel(mode), longestAllowed(selectedNotes().length));
+function currentLength() {
+  return Math.min(progress.getLevel(LEVEL), longestAllowed(selectedNotes().length));
 }
 
 const keyOf = mode => pattern => `${mode}:${patternKey(pattern)}`;
@@ -51,7 +53,7 @@ function startSession(mode) {
 }
 
 function buildPool() {
-  session.length = lengthFor(session.mode);
+  session.length = currentLength();
   session.pool = allPatterns(selectedNotes(), session.length);
   session.again = [];
 }
@@ -76,7 +78,7 @@ function mark(got) {
   if (!got) s.again.push({ pattern: s.pattern, due: s.turn + 2 + Math.floor(Math.random() * 3) });
   const maxLevel = longestAllowed(selectedNotes().length);
   s.message = '';
-  if (progress.recordForLevel(s.mode, got, maxLevel)) {
+  if (progress.recordForLevel(LEVEL, got, maxLevel)) {
     buildPool();
     s.message = `Level up! Now: ${levelName(s.length).toLowerCase()}`;
   }
@@ -110,15 +112,12 @@ function homeScreen() {
       aria-pressed="${settings.notes.includes(n.id)}">${chipLabel(n)}</button>`).join('');
   const modeButton = mode => `
     <button class="btn primary huge" data-action="start" data-id="${mode}" ${count ? '' : 'disabled'}>
-      ${MODES[mode].title}<small>${MODES[mode].sub}</small>
-      <span class="level-tag">${levelName(lengthFor(mode))}</span></button>`;
-  const levelRow = mode => `
-    <div class="level-row">
-      <span>${MODES[mode].title}</span>
-      <div class="segs">${[1, 2, 3, 4].slice(0, MAX_LENGTH).map(n => `
-        <button class="seg" data-action="set-level" data-id="${mode}:${n}"
-          aria-pressed="${progress.getLevel(mode) === n}">${n}</button>`).join('')}</div>
-    </div>`;
+      ${MODES[mode].title}<small>${MODES[mode].sub}</small></button>`;
+  const canPattern = longestAllowed(count) > 1;
+  const level = currentLength();
+  const lengthButtons = [1, 2, 3, 4].slice(0, MAX_LENGTH).map(n => `
+    <button class="seg" data-action="set-level" data-id="${n}" aria-pressed="${level === n}"
+      ${n > 1 && !canPattern ? 'disabled' : ''}>${n}</button>`).join('');
   return `
     <header class="home-head">
       <h1>Recorder Fingerings</h1>
@@ -133,12 +132,14 @@ function homeScreen() {
         </div>
       </div>
       <div class="chips">${chips}</div>
-      <p class="count">${count} note${count === 1 ? '' : 's'} selected${count === 1 ? ' · choose 2 or more for patterns' : ''}</p>
+      <p class="count">${count} note${count === 1 ? '' : 's'} selected</p>
+      <h2>Notes per card</h2>
+      <div class="segs len-picker">${lengthButtons}</div>
+      <p class="hint">${canPattern
+        ? `${levelName(level)}. Get ${progress.LEVEL_UP_NEEDED} right out of ${progress.LEVEL_UP_WINDOW} and the app moves you up.`
+        : 'Choose 2 or more notes to practice patterns.'}</p>
     </section>
     <div class="big-btns">${modeButton('note')}${modeButton('fingering')}</div>
-    <p class="hint center">Start with single notes. After ${progress.LEVEL_UP_NEEDED} right out of ${progress.LEVEL_UP_WINDOW}, the app moves up to 2-note patterns, then 3, then 4.</p>
-    <button class="link center" data-action="toggle-levels">${showLevels ? 'Close' : 'Change level'}</button>
-    ${showLevels ? `<section class="panel levels"><h2>Notes per card</h2>${levelRow('note')}${levelRow('fingering')}</section>` : ''}
   `;
 }
 
@@ -160,7 +161,7 @@ function cardScreen() {
          <button class="btn again" data-action="again">↻ Try again later</button>
        </div>`
     : '';
-  const score = progress.recentScore(s.mode);
+  const score = progress.recentScore(LEVEL);
   return `
     <header class="bar">
       <button class="link" data-action="home">‹ Home</button>
@@ -202,8 +203,7 @@ const ACTIONS = {
   },
   'all-notes': () => { settings.notes = NOTES.map(n => n.id); saveSettings(); },
   'no-notes': () => { settings.notes = []; saveSettings(); },
-  'toggle-levels': () => { showLevels = !showLevels; },
-  'set-level': id => { const [mode, n] = id.split(':'); progress.setLevel(mode, Number(n)); },
+  'set-level': n => progress.setLevel(LEVEL, Number(n)),
   'start': mode => { startSession(mode); window.scrollTo(0, 0); },
   'home': () => { screen = 'home'; window.scrollTo(0, 0); },
   'hear': () => { audio.playNotes(session.pattern.map(n => soundingMidi(n.id))); return false; },
@@ -221,6 +221,12 @@ root.addEventListener('click', e => {
 
 render();
 
+// Offline copy. When a newer version of the app arrives, reload once to show it.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  let hadVersion = !!navigator.serviceWorker.controller; // false on the very first visit
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadVersion) location.reload();
+    hadVersion = true;
+  });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
 }

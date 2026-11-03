@@ -5,10 +5,9 @@ matching a printed fingering chart.
 
 - **Note → Fingering:** see the note on the staff, think of the fingering, then *Show answer*.
 - **Fingering → Note:** see the fingering, name the note, then *Show answer*.
-- **Patterns:** she starts with single notes. After 8 right out of 10, the app moves her up to
-  2-note patterns, then 3, then 4 (separately for each practice direction). Patterns use every possible
-  order of her chosen notes, never the same note twice in a row. "Change level" on the home screen
-  lets a teacher set the level by hand.
+- **Notes per card:** she picks 1, 2, 3 or 4 on the home screen. After 8 right out of 10, the app also
+  moves her up a level by itself. Patterns use every possible order of her chosen notes, never the
+  same note twice in a row.
 - **Hear it** plays the note at real soprano recorder pitch (an octave above written).
 - "Try again later" notes come back sooner and more often. Progress is stored only on the device.
 - Works offline after the first visit and can be added to the iPhone/iPad home screen.
