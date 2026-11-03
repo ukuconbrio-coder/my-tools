@@ -50,11 +50,24 @@ function stopCurrent() {
   current = null;
 }
 
-export function playNote(midi, length = 1.5) {
+// Play one note, or a pattern of notes one after another.
+// midis: a MIDI number or a list of them.
+export function playNotes(midis) {
   unlock();
   stopCurrent();
+  const list = [].concat(midis);
+  const group = ctx.createGain(); // all the notes go through this, so a new tap can stop them
+  group.connect(master);
+  current = group;
+  const single = list.length === 1;
+  const length = single ? 1.5 : 0.75;   // seconds each note sounds
+  const step = single ? 0 : 0.9;        // seconds from one note to the next
+  const start = ctx.currentTime + 0.04;
+  list.forEach((midi, i) => playNote(midi, start + i * step, length, group));
+}
+
+function playNote(midi, t, length, dest) {
   const f = freqOf(midi);
-  const t = ctx.currentTime + 0.04;
   const out = ctx.createGain();
   out.gain.setValueAtTime(0, t);
   out.gain.linearRampToValueAtTime(1, t + TONE.attack);
@@ -65,8 +78,7 @@ export function playNote(midi, length = 1.5) {
   mellow.type = 'lowpass';
   mellow.frequency.value = Math.min(f * TONE.brightness, 4000);
   mellow.Q.value = 0.5;
-  out.connect(mellow).connect(master);
-  current = out;
+  out.connect(mellow).connect(dest);
 
   // gentle vibrato that starts after the note settles
   const lfo = ctx.createOscillator();

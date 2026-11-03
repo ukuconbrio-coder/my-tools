@@ -1,6 +1,6 @@
 // Keeps a copy of the app on the device so it works offline.
 // When you change any file, bump VERSION so devices pick up the new copy.
-const VERSION = 'recorder-trainer-v2';
+const VERSION = 'recorder-trainer-v3';
 const FILES = [
   './',
   'index.html',
@@ -8,6 +8,7 @@ const FILES = [
   'js/app.js',
   'js/audio.js',
   'js/notes.js',
+  'js/patterns.js',
   'js/glyphs.js',
   'js/progress.js',
   'js/recorder.js',

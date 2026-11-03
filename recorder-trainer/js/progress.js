@@ -1,15 +1,20 @@
 // Saves progress on this device only (browser storage). Nothing is sent anywhere.
 //
-// Each card (one note in one practice direction) has a "box" from 0 to 5:
-//   "I got it"        -> up one box (shown less often)
-//   "Try again later" -> back to box 0 (shown more often, and again soon)
+// 1) Each card (a note or pattern, in one practice direction) has a "box" from 0 to 5:
+//      "I got it"        -> up one box (shown less often)
+//      "Try again later" -> back to box 0 (shown more often, and again soon)
+//
+// 2) Each practice direction has a LEVEL = how many notes per card (1 to 4).
+//    She moves up a level when she gets LEVEL_UP_NEEDED of her last LEVEL_UP_WINDOW cards.
 
 const KEY = 'recorder-trainer-v1';
 const MAX_BOX = 5;
 const WEIGHT = [8, 5, 3, 2, 1.4, 1]; // chance of being picked, by box
 const NEW_WEIGHT = 5;
+export const LEVEL_UP_WINDOW = 10;
+export const LEVEL_UP_NEEDED = 8;
 
-const blank = () => ({ cards: {}, settings: {} });
+const blank = () => ({ cards: {}, settings: {}, levels: {} });
 let data = load();
 
 function load() {
@@ -35,21 +40,58 @@ export function record(cardKey, gotIt) {
   save();
 }
 
+// ---------- levels (notes per card) ----------
+function levelData(mode) {
+  return data.levels[mode] || (data.levels[mode] = { level: 1, recent: [] });
+}
+
+export function getLevel(mode) { return levelData(mode).level; }
+
+// How many of the last few cards she got, at this level.
+export function recentScore(mode) {
+  const l = levelData(mode);
+  return { got: l.recent.filter(Boolean).length, of: l.recent.length };
+}
+
+export function setLevel(mode, level) {
+  const l = levelData(mode);
+  l.level = level;
+  l.recent = [];
+  save();
+}
+
+// Call after each card. Returns true if she just moved up a level.
+export function recordForLevel(mode, gotIt, maxLevel) {
+  const l = levelData(mode);
+  l.recent = [...l.recent, gotIt].slice(-LEVEL_UP_WINDOW);
+  let movedUp = false;
+  if (l.level < maxLevel &&
+      l.recent.length >= LEVEL_UP_WINDOW &&
+      l.recent.filter(Boolean).length >= LEVEL_UP_NEEDED) {
+    l.level += 1;
+    l.recent = [];
+    movedUp = true;
+  }
+  save();
+  return movedUp;
+}
+
+// ---------- choosing the next card ----------
 function weightOf(cardKey) {
   const s = data.cards[cardKey];
   return s ? WEIGHT[s.box] : NEW_WEIGHT;
 }
 
-// Pick a note at random, favouring ones that need more practice.
-// keyOf(note) gives the saved-progress key for that note in this mode.
-export function pickWeighted(notes, keyOf, avoidId) {
-  let pool = notes.filter(n => n.id !== avoidId);
-  if (!pool.length) pool = notes;
-  const total = pool.reduce((t, n) => t + weightOf(keyOf(n)), 0);
-  let r = Math.random() * total;
-  for (const n of pool) {
-    r -= weightOf(keyOf(n));
-    if (r <= 0) return n;
+// Pick one item at random, favouring ones that need more practice.
+// keyOf(item) gives its saved-progress key. avoidKey = don't repeat the card just shown.
+export function pickWeighted(items, keyOf, avoidKey) {
+  let pool = items.filter(it => keyOf(it) !== avoidKey);
+  if (!pool.length) pool = items;
+  const weights = pool.map(it => weightOf(keyOf(it)));
+  let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < pool.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return pool[i];
   }
   return pool[pool.length - 1];
 }
